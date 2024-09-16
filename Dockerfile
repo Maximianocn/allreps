@@ -4,8 +4,8 @@ FROM eclipse-temurin:17-jdk-alpine
 # Criar diretório de trabalho
 WORKDIR /app
 
-# Copiar o arquivo JAR para o contêiner
-COPY build/libs/*.jar app.jar
+# Copiar o arquivo JAR gerado para o contêiner
+COPY build/libs/allreps-0.0.1-SNAPSHOT.jar /app/app.jar
 
 # Expor a porta 8080
 EXPOSE 8080
@@ -14,4 +14,4 @@ EXPOSE 8080
 ENV PORT 8080
 
 # Comando para iniciar a aplicação
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
