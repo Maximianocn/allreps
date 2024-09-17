@@ -4,8 +4,11 @@ FROM eclipse-temurin:17-jdk-alpine
 # Configurar o diretório de trabalho
 WORKDIR /app
 
-# Copiar os arquivos do projeto
+# Copiar todos os arquivos do projeto para o contêiner
 COPY . .
+
+# Conceder permissão de execução para o script gradlew
+RUN chmod +x ./gradlew
 
 # Executar o build do projeto
 RUN ./gradlew build
