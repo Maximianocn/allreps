@@ -5,8 +5,7 @@ FROM eclipse-temurin:17-jdk-alpine
 WORKDIR /app
 
 # Copiar o arquivo JAR gerado para o contêiner
-COPY build/libs/allreps-0.0.1-SNAPSHOT.jar /app
-
+COPY build/libs/*.jar /app/app.jar
 
 # Expor a porta 8080
 EXPOSE 8080
