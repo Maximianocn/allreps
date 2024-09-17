@@ -14,6 +14,8 @@ java {
 	}
 }
 
+
+
 jib {
 	to {
 		image = 'registry.heroku.com/allreps/web' // Nome da imagem de destino para o Heroku Container Registry
