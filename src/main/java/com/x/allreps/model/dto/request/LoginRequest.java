@@ -1,4 +1,4 @@
-package com.x.allreps.model.dto;
+package com.x.allreps.model.dto.request;
 
 import lombok.Data;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -7,8 +7,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Data
 public class LoginRequest {
 
-    @Schema(description = "Nome de usuário", example = "usuario_exemplo", required = true)
-    private String username;
+    @Schema(description = "Email do usuário", example = "usuario@gmail.com", required = true)
+    private String email;
 
     @Schema(description = "Senha do usuário", example = "senha123", required = true)
     private String password;

@@ -4,60 +4,90 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // Tratamento de ResourceNotFoundException
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
-        logger.error("ResourceNotFoundException: {}", ex.getMessage());
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
+    // Método auxiliar para construir o ErrorResponse
+    private ErrorResponse buildErrorResponse(HttpStatus status, String message, List<String> details) {
+        return new ErrorResponse(
+                status.value(),
+                message,
+                details,
                 LocalDateTime.now()
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
+    // Tratamento de ResourceNotFoundException
+    @ExceptionHandler(ResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleResourceNotFoundException(ResourceNotFoundException ex) {
+        logger.error("ResourceNotFoundException: {}", ex.getMessage());
+        return buildErrorResponse(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage(),
+                null
+        );
     }
 
     // Tratamento de UsernameAlreadyExistsException
     @ExceptionHandler(UsernameAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleUsernameAlreadyExistsException(UsernameAlreadyExistsException ex) {
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleUsernameAlreadyExistsException(UsernameAlreadyExistsException ex) {
         logger.error("UsernameAlreadyExistsException: {}", ex.getMessage());
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
                 ex.getMessage(),
-                LocalDateTime.now()
+                null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     // Tratamento de InvalidCredentialsException
     @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException ex) {
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleInvalidCredentialsException(InvalidCredentialsException ex) {
         logger.error("InvalidCredentialsException: {}", ex.getMessage());
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
+        return buildErrorResponse(
+                HttpStatus.UNAUTHORIZED,
                 ex.getMessage(),
-                LocalDateTime.now()
+                null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+
+    // Tratamento de MethodArgumentNotValidException (erros de validação)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleValidationExceptions(MethodArgumentNotValidException ex) {
+        logger.error("ValidationException: {}", ex.getMessage());
+        List<String> errors = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(fieldError -> String.format("%s: %s", fieldError.getField(), fieldError.getDefaultMessage()))
+                .collect(Collectors.toList());
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "Erro de validação",
+                errors
+        );
     }
 
     // Tratamento de outras exceções genéricas
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(Exception ex) {
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleException(Exception ex) {
         logger.error("Exception: ", ex);
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+        return buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
                 "Ocorreu um erro interno no servidor",
-                LocalDateTime.now()
+                null
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

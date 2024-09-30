@@ -1,9 +1,11 @@
 package com.x.allreps.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 @Entity
 @Table(name = "republicas")
@@ -51,9 +53,11 @@ public class Republica {
     @ManyToOne
     @JoinColumn(name = "anunciante_id")
     @Schema(description = "Usuário que anunciou a república")
+    @JsonIgnore
     private User anunciante;
 
     @ElementCollection
-    @Schema(description = "URLs das fotos da república", example = "[\"http://exemplo.com/imagens/republica1_foto1.jpg\", \"http://exemplo.com/imagens/republica1_foto2.jpg\"]")
-    private List<String> fotos;
+    @CollectionTable(name = "republica_fotos", joinColumns = @JoinColumn(name = "republica_id"))
+    @Column(name = "foto_url")
+    private List<String> fotos = new ArrayList<>();
 }
