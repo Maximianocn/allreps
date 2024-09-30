@@ -1,28 +1,40 @@
 package com.x.allreps.controller;
 
-import com.x.allreps.exception.InvalidCredentialsException;
+import com.x.allreps.exception.ErrorResponse;
 import com.x.allreps.model.User;
-import com.x.allreps.model.dto.LoginRequest;
-import com.x.allreps.model.dto.SignUpRequest;
+import com.x.allreps.model.dto.request.LoginRequest;
+
+import com.x.allreps.model.dto.request.SignUpRequest;
+
+import com.x.allreps.model.dto.response.LoginResponse;
+import com.x.allreps.model.dto.response.UserResponse;
 import com.x.allreps.security.JwtUtil;
 import com.x.allreps.security.UserDetailsImpl;
 import com.x.allreps.service.UserService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.validation.BindingResult;
+
 import org.springframework.web.bind.annotation.*;
 
 // Importações do Swagger
 import io.swagger.v3.oas.annotations.*;
 import io.swagger.v3.oas.annotations.media.*;
 import io.swagger.v3.oas.annotations.responses.*;
-import io.swagger.v3.oas.annotations.parameters.*;
 import io.swagger.v3.oas.annotations.tags.*;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -34,7 +46,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
     private final JwtUtil jwtUtil;
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthController(AuthenticationManager authenticationManager,
                           UserService userService,
@@ -55,9 +67,9 @@ public class AuthController {
             @ApiResponse(
                     responseCode = "200",
                     description = "Autenticação bem-sucedida",
-                    content = @Content(mediaType = "application/json", schema = @Schema(type = "string", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6..."))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoginResponse.class))
             ),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas", content = @Content)
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(
@@ -66,28 +78,41 @@ public class AuthController {
                     required = true,
                     schema = @Schema(implementation = LoginRequest.class)
             )
-            @RequestBody LoginRequest loginRequest) {
+            @Valid @RequestBody LoginRequest loginRequest,
+            BindingResult bindingResult) {
 
-        logger.info("Tentativa de autenticação para o usuário: {}", loginRequest.getUsername());
+        logger.info("Tentativa de autenticação para o usuário: {}", loginRequest.getEmail());
+
+
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getUsername(), loginRequest.getPassword())
+                            loginRequest.getEmail(), loginRequest.getPassword())
             );
 
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+
             String jwt = jwtUtil.generateJwtToken(userDetails);
 
-            logger.info("Usuário autenticado com sucesso: {}", loginRequest.getUsername());
+            logger.info("Usuário autenticado com sucesso: {}", loginRequest.getEmail());
 
-            return ResponseEntity.ok(jwt);
+            // Obter o usuário a partir do UserDetails
+            Optional<User> user = userService.findByEmail(userDetails.getUsername());
+            UserResponse userResponse = new UserResponse(user);
+
+            // Criar a resposta de login
+            LoginResponse loginResponse = new LoginResponse(jwt, userResponse);
+
+            return ResponseEntity.ok(loginResponse);
         } catch (AuthenticationException e) {
-            logger.error("Falha na autenticação para o usuário: {}", loginRequest.getUsername());
-            throw new InvalidCredentialsException("Credenciais inválidas");
+            logger.error("Falha na autenticação para o usuário: {}", loginRequest.getEmail());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse(401, "Credenciais inválidas", null, LocalDateTime.now()));
         }
     }
 
     @CrossOrigin("*")
+    @PostMapping("/register")
     @Operation(
             summary = "Registrar novo usuário",
             description = "Registra um novo usuário com as informações fornecidas."
@@ -96,29 +121,49 @@ public class AuthController {
             @ApiResponse(
                     responseCode = "200",
                     description = "Usuário registrado com sucesso",
-                    content = @Content(mediaType = "application/json", schema = @Schema(type = "string", example = "Usuário registrado com sucesso!"))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponse.class))
             ),
-            @ApiResponse(responseCode = "400", description = "Usuário já existe ou dados inválidos", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Erro na validação dos dados", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @PostMapping("/register")
     public ResponseEntity<?> registerUser(
             @Parameter(
                     description = "Dados para registro do usuário",
                     required = true,
                     schema = @Schema(implementation = SignUpRequest.class)
             )
-            @org.springframework.web.bind.annotation.RequestBody SignUpRequest signUpRequest) {
+            @Valid @RequestBody SignUpRequest signUpRequest,
+            BindingResult bindingResult) {
 
-        logger.info("Tentativa de registro para o usuário: {}", signUpRequest.getUsername());
+        logger.info("Tentativa de registro para o usuário: {}", signUpRequest.getEmail());
 
-        // O método userService.save(user) lançará UsernameAlreadyExistsException se o usuário já existir
+
+        // Verificar se o email já está registrado
+        if (userService.existsByEmail(signUpRequest.getEmail())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(400, "Email já registrado.", null, LocalDateTime.now()));
+        }
+
+        // Verificar se o número de telefone já está registrado
+        if (userService.existsByPhoneNumber(signUpRequest.getPhoneNumber())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(400, "Número de celular já registrado.", null, LocalDateTime.now()));
+        }
+
+        // Criar novo usuário
         User user = new User();
-        user.setUsername(signUpRequest.getUsername());
+        user.setEmail(signUpRequest.getEmail());
         user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
+        user.setUsername(signUpRequest.getUsername());
+        user.setName(signUpRequest.getName());
+        user.setSurname(signUpRequest.getSurname());
+        user.setPhoneNumber(signUpRequest.getPhoneNumber());
         userService.save(user);
 
-        logger.info("Usuário registrado com sucesso: {}", signUpRequest.getUsername());
+        logger.info("Usuário registrado com sucesso: {}", signUpRequest.getEmail());
 
-        return ResponseEntity.ok("Usuário registrado com sucesso!");
+        // Criar a resposta do usuário
+        UserResponse userResponse = new UserResponse(Optional.of(user));
+
+        return ResponseEntity.ok(userResponse);
     }
 }

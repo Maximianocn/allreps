@@ -30,7 +30,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getUsername(); // Certifique-se de que getUsername() existe na classe User
+        return user.getEmail(); // Certifique-se de que getUsername() existe na classe User
     }
 
     // Outros métodos podem retornar true ou false conforme a necessidade

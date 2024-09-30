@@ -13,20 +13,21 @@ public class JwtUtil {
 
     public String generateJwtToken(UserDetailsImpl userDetails) {
         return Jwts.builder()
-                .setSubject(userDetails.getUsername())
+                .setSubject(userDetails.getUsername()) // Aqui o getUsername retorna o email
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
     }
 
-    public String getUsernameFromJwtToken(String token) {
+    public String getEmailFromJwtToken(String token) {
         return Jwts.parser()
                 .setSigningKey(jwtSecret)
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
     }
+
 
     public boolean validateJwtToken(String authToken) {
         try {
