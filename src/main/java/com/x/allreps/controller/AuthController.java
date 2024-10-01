@@ -14,6 +14,7 @@ import com.x.allreps.service.UserService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
@@ -43,20 +44,18 @@ public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    private final AuthenticationManager authenticationManager;
-    private final UserService userService;
-    private final JwtUtil jwtUtil;
-    private final PasswordEncoder passwordEncoder;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
-    public AuthController(AuthenticationManager authenticationManager,
-                          UserService userService,
-                          JwtUtil jwtUtil,
-                          PasswordEncoder passwordEncoder) {
-        this.authenticationManager = authenticationManager;
-        this.userService = userService;
-        this.jwtUtil = jwtUtil;
-        this.passwordEncoder = passwordEncoder;
-    }
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
 
     @CrossOrigin("*")
     @Operation(
@@ -105,7 +104,7 @@ public class AuthController {
 
             return ResponseEntity.ok(loginResponse);
         } catch (AuthenticationException e) {
-            logger.error("Falha na autenticação para o usuário: {}", loginRequest.getEmail());
+            logger.error("Falha na autenticação para o usuário: {}", loginRequest.getEmail(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse(401, "Credenciais inválidas", null, LocalDateTime.now()));
         }
@@ -152,7 +151,7 @@ public class AuthController {
         // Criar novo usuário
         User user = new User();
         user.setEmail(signUpRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
+        user.setPassword(signUpRequest.getPassword());
         user.setUsername(signUpRequest.getUsername());
         user.setName(signUpRequest.getName());
         user.setSurname(signUpRequest.getSurname());

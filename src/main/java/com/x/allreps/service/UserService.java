@@ -1,5 +1,6 @@
 package com.x.allreps.service;
 
+import com.x.allreps.config.AppConfig;
 import com.x.allreps.exception.InvalidResetCodeException;
 import com.x.allreps.exception.ResourceNotFoundException;
 import com.x.allreps.exception.UsernameAlreadyExistsException;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
@@ -27,12 +27,14 @@ public class UserService implements UserDetailsService {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+
     private final EmailService emailService;
+
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, EmailService emailService) {
+    private PasswordEncoder passwordEncoder;
+    @Autowired
+    public UserService(UserRepository userRepository, EmailService emailService) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
     }
 
@@ -111,7 +113,7 @@ public class UserService implements UserDetailsService {
         user.setPassword(encodedPassword);
 
         // Limpar o código de redefinição e sua expiração
-        user.setResetCode(null);
+        user.setResetCode(code);
         user.setResetCodeExpiration(null);
 
         userRepository.save(user);
